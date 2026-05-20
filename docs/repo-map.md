@@ -8,9 +8,9 @@
 
 ## Summary
 - App type: early-stage PoC repository for Admith multi-agent negotiation.
-- Main runtime: Node.js for verification scripts; future PoC may use Python or Node.
-- Package manager: not established yet.
-- Primary source directory: none yet.
+- Main runtime: Python/FastAPI backend; Node.js for verification scripts; future Operator Dashboard uses Next.js/TypeScript.
+- Package manager: Python tooling not established yet; Node package manager not established yet.
+- Primary source directory: none yet; future backend likely src/ or app/.
 - Primary test directory: none yet.
 - Project memory: docs/ and tasks.md.
 - Context source: docs/context/.
@@ -28,6 +28,8 @@
 | docs/decisions.md | Permanent rationale | medium | Add durable decisions after T005 |
 | docs/issues.md | Failure and escalation log | low | Empty until failures occur |
 | scripts/ | Automation | medium | verify.mjs is the current entry point |
+| future backend | FastAPI application and Gemini negotiation PoC | high | Python is the backend default |
+| future dashboard | Operator Dashboard | medium | Next.js/TypeScript is the UI default |
 | .claude/ | Claude project settings | low | Minimal .env read deny |
 
 ## Entry Points

@@ -17,3 +17,4 @@
 | D013 | 2026-05-20 | Store negotiation logs, estimate basis, and change reasons. | 下請法から取適法への2026年1月改正を見据え、協議ログ保存が必要。 | docs/context/Admith_Project_Context.md §3 |
 | D014 | 2026-05-20 | Use pm-zero v9.4 Lean Task Ledger OS. | tasks.md、state.md、repo-map.mdで実行管理と引き継ぎ損失を防ぐ。 | C:/Users/chidj/project/pm-zero/pm-zero-knowledge-v9.4.md |
 | D015 | 2026-05-20 | Agent routing: planning/design/review by Claude Code, implementation by Codex CLI. | pm-zero v9.4の役割分担にAdmith固有ルールとして明記する。 | user instruction |
+| D016 | 2026-05-20 | Use Python/FastAPI for backend and Next.js/TypeScript for Operator Dashboard. | Phase 0規模ではGoの真の並列性は不要。LLM API統合、エージェント交渉、将来のVector DB/差分プライバシー周辺ライブラリはPython-firstが最も強い。UIはTypeScriptが自然。 | user instruction |
