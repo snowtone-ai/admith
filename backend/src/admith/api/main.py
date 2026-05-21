@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hmac
 import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from decimal import Decimal
 from uuid import UUID
 
@@ -28,6 +30,7 @@ from admith.api.runtime import (
     settlement_service,
 )
 from admith.api.schemas import AgentCreate, DecisionRequest, NegotiationCreate, ResourceCreate
+from admith.config import ensure_production_safe_settings
 from admith.domain.approval import canonical_hash
 from admith.domain.models import (
     Agent,
@@ -42,7 +45,14 @@ from admith.domain.models import (
 )
 from admith.domain.rule_engine import RuleEngine
 
-app = FastAPI(title="Admith MVP", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    ensure_production_safe_settings()
+    yield
+
+
+app = FastAPI(title="Admith MVP", version="0.1.0", lifespan=lifespan)
 
 
 def require_api_key(authorization: str | None = Header(default=None)) -> None:

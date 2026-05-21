@@ -14,7 +14,7 @@
 - Primary test directory: tests/.
 - Project memory: docs/ and tasks.md.
 - Context source: docs/context/.
-- Current goal: Step 3 MVP implemented; Docker smoke remains pending because Docker CLI is unavailable in this environment.
+- Current goal: Step 4 production hardening is in progress; BD1-BD5 human/vendor decisions remain blocked.
 - Verification command: node scripts/verify.mjs.
 - Secret template: .env.example.
 - Runtime secret file: .env, ignored and read-denied for Claude.
@@ -27,6 +27,8 @@
 | docs/state.md | Current pointer and lock | medium | No task facts beyond active pointer |
 | docs/decisions.md | Permanent rationale | medium | Add durable decisions after T005 |
 | docs/issues.md | Failure and escalation log | low | Empty until failures occur |
+| docs/production-readiness.md | Step 4 release gates and residual risk policy | medium | Production hardening source for release gate status |
+| docs/production-human-actions.md | Human-only production actions | medium | BD1-BD5, legal/security/ops reviews, and environment responsibilities |
 | scripts/ | Automation | medium | verify.mjs is the structure check; run_poc.py executes the PoC comparison |
 | poc/ | Step 2 negotiation PoC source | high | Rule Engine, Compliance reasons, Action state path, OntologyView/Mandate boundary, structured CNP, natural-language baseline, comparison metrics |
 | backend/ | FastAPI backend | high | Hexagonal structure, domain models, Ports, adapters, API, Alembic |

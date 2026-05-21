@@ -30,6 +30,10 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://admith:admith@db:5432/admith
       REDIS_URL: redis://redis:6379/0
+      ADMITH_RUNTIME: ${ADMITH_RUNTIME:-demo}
+      ADMITH_REPOSITORY_MODE: ${ADMITH_REPOSITORY_MODE:-memory}
+      ADMITH_ECONTRACT_ADAPTER_MODE: ${ADMITH_ECONTRACT_ADAPTER_MODE:-stub}
+      ADMITH_MANIFEST_ADAPTER_MODE: ${ADMITH_MANIFEST_ADAPTER_MODE:-stub}
       API_KEY: ${API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       LOG_LEVEL: INFO

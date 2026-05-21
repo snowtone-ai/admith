@@ -5,7 +5,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from geoalchemy2 import Geography
-from sqlalchemy import DateTime, ForeignKey, Integer, LargeBinary, Numeric, String
+from sqlalchemy import DateTime, ForeignKey, Integer, LargeBinary, Numeric, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -71,6 +71,7 @@ class NegotiationRow(Base):
     negotiation_ttl_until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     approval_ttl_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     pickup_deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    settlement_ttl_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     domain_id: Mapped[str] = mapped_column(String(64))
@@ -89,11 +90,19 @@ class AgentMandateRow(Base):
     allowed_regions: Mapped[list] = mapped_column(JSONB)
     property_markings: Mapped[list] = mapped_column(JSONB)
     propagation_markings: Mapped[list] = mapped_column(JSONB)
-    limits: Mapped[dict] = mapped_column(JSONB)
+    max_amount_per_deal: Mapped[Decimal] = mapped_column(Numeric)
+    max_amount_per_day: Mapped[Decimal] = mapped_column(Numeric)
+    max_quantity_per_deal: Mapped[Decimal | None] = mapped_column(Numeric)
+    currency: Mapped[str] = mapped_column(String(8))
+    allowed_counterparties: Mapped[list | None] = mapped_column(JSONB)
     approval_mode: Mapped[str] = mapped_column(String(32))
+    approval_threshold: Mapped[Decimal | None] = mapped_column(Numeric)
     valid_from: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     valid_until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     version: Mapped[int] = mapped_column(Integer)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_reason: Mapped[str | None] = mapped_column(String(1024))
+    mandate_signature: Mapped[bytes | None] = mapped_column(LargeBinary)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
@@ -124,6 +133,7 @@ class MessageRow(Base):
 
 class AgreementRow(Base):
     __tablename__ = "agreements"
+    __table_args__ = (UniqueConstraint("negotiation_id", name="uq_agreements_negotiation_id"),)
     agreement_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True)
     negotiation_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("negotiations.negotiation_id"))
     terms: Mapped[dict] = mapped_column(JSONB)

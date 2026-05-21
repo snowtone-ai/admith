@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
-from admith.domain.models import AuditEvent, Negotiation, Resource
+from admith.domain.models import AuditEvent, Negotiation, NegotiationState, Resource
+
+RESOURCE_LOCK_LEASE = timedelta(minutes=5)
 
 
 def canonical_json(value: dict[str, object]) -> bytes:
@@ -30,7 +32,7 @@ class InMemoryResourceRepository:
         resource.state = "locked"
         resource.lock_token = uuid4()
         resource.locked_by_negotiation_id = negotiation_id
-        resource.locked_until = datetime.now(timezone.utc)
+        resource.locked_until = datetime.now(timezone.utc) + RESOURCE_LOCK_LEASE
         return resource
 
 
@@ -50,7 +52,12 @@ class InMemoryNegotiationRepository:
 
     async def expired(self) -> list[Negotiation]:
         now = datetime.now(timezone.utc)
-        return [item for item in self.items.values() if item.matching_ttl_until < now or item.negotiation_ttl_until < now]
+        terminal = {NegotiationState.SETTLED, NegotiationState.FAILED, NegotiationState.EXPIRED}
+        return [
+            item
+            for item in self.items.values()
+            if item.state not in terminal and (item.matching_ttl_until < now or item.negotiation_ttl_until < now)
+        ]
 
 
 class InMemoryAuditEventRepository:

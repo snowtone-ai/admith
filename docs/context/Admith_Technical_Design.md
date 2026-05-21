@@ -131,6 +131,23 @@ class LLMProvider(Protocol):
                             max_tokens: int, temperature: float) -> CompletionResult: ...
 ```
 
+### 3.2 Runtime Profile 境界（Step 4本番化）
+
+Step 4以降は `ADMITH_RUNTIME=demo|production` を明示する。
+
+| Profile | Repository | External adapters | Allowed purpose |
+|---|---|---|---|
+| demo | memory | stub | ローカルデモ、開発者向けsmoke、UI確認 |
+| production | database only | sandbox or production only | 本番相当検証、本番運用 |
+
+Production profileでは以下をfail-closedにする。
+- `admith.api.runtime` のin-memory singleton。
+- `ADMITH_REPOSITORY_MODE=memory`。
+- `ADMITH_ECONTRACT_ADAPTER_MODE=stub`。
+- `ADMITH_MANIFEST_ADAPTER_MODE=stub`。
+
+この境界はT210以降のDB repository差替より先に導入し、demo-only経路がproductionへ混入する再発を防ぐ。
+
 ---
 
 ## 4. データモデル

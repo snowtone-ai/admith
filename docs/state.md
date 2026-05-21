@@ -2,15 +2,15 @@
 
 ## Current
 - Branch: main
-- Active task: Step 3 MVP公開前ハードニング・GitHub公開準備
+- Active task: Step 4 Production Hardening: T200-T203 done; T210 done; T211 doing; BD1-BD5 blocked
 - Current executor: Codex CLI
 - Write lock: none
-- Coordinator: Claude Code
-- Latest verification pointer: rtk ruff check backend/src tests -> passed; rtk pytest -q -> 17 passed; rtk pnpm --prefix dashboard lint/typecheck/test/build -> passed; docker compose up -d --build -> passed; smoke_test.sh -> passed; docker compose down -> passed; node scripts/verify.mjs -> passed
+- Coordinator: Codex CLI
+- Latest verification pointer: rtk pytest -q -> 22 passed; rtk ruff check backend/src tests -> passed; node scripts/verify.mjs -> passed
 - Verification mode: quick
 
 ## Current Blocker
-- none
+- BD1-BD5 require human/vendor decisions before Auth, KYB, external contract, manifest, and hosting tasks can be completed.
 
 ## Next
-- Final verification, README, overview HTML, commit, and push
+- Resolve BD1-BD5 and complete `docs/production-human-actions.md`; run PostgreSQL/PostGIS-backed Alembic and repository contract tests when Docker/DB is available.

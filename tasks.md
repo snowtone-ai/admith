@@ -2,10 +2,10 @@
 
 ## Goal Binding
 - Vision source: docs/vision.md
-- Active goal: Step 3 MVP（企業インストール可能なB2B食品廃棄物マッチング・交渉プラットフォーム）
-- Planning owner: Claude Code
+- Active goal: Step 4 Production Hardening（本番リリース可能なB2B食品廃棄物マッチング・交渉プラットフォーム）
+- Planning owner: Coordinator (agent指定なし)
 - Implementation owner: Codex CLI
-- Review owner: Claude Code
+- Review owner: Independent reviewer (cross-vendor where required)
 
 ## Status Vocabulary
 - proposed: idea exists, not ready
@@ -157,5 +157,97 @@ T102 ─────────────────────────
 | M6 | done | Approval reject recommendation uses actual negotiation initiator agent_id. |
 | L3 | done | smoke_test.sh polling is configurable via SMOKE_MAX_ATTEMPTS and SMOKE_POLL_SECONDS. |
 
-Verification: tk ruff check backend/src tests passed; tk pytest -q 15 passed; tk pnpm --prefix dashboard build passed; 
-ode scripts/verify.mjs passed. Docker remains unverified because Docker CLI is unavailable in this environment.
+Verification:
+rtk ruff check backend/src tests passed;
+rtk pytest -q 15 passed;
+rtk pnpm --prefix dashboard build passed;
+node scripts/verify.mjs passed. Docker remains unverified because Docker CLI is unavailable in this environment.
+
+---
+
+## Step 4: Production Release Implementation Plan
+
+### Planning Method
+- Chain-of-thought: 実行済み。台帳には検証可能な結論・タスク・受入条件のみを記録し、非公開推論は記載しない。
+- Chain-of-Verification:
+  1. READMEの本番前リスクを確認: in-memory runtime, 組織ユーザー認証, KYB, 権限管理, 秘密情報管理, 外部契約・マニフェスト連携, クロスベンダーセキュリティレビュー。
+  2. 現状実装を確認: `backend/src/admith/api/runtime.py` はin-memory singleton、`backend/src/admith/api/main.py` は単一API_KEY認証、`manifest_stub.py` / `econtract_stub.py` はスタブ。
+  3. 実装確定できるproduction profile境界を先にfail-closed化し、未選定ベンダー依存はblocked decisionへ分離。
+  4. 本番不可の外部意思決定は、人間の契約・法務・運用判断なしに完了扱いにしない。
+
+### Three Skeletons Compared
+| Skeleton | Summary | Decision |
+|---|---|---|
+| A | Big-bang SaaS rebuild | reject: 既存MVPの検証済み境界を捨て、回帰範囲が大きい |
+| B | Incremental hardening behind existing Ports | adopt: Hexagonal構造と既存テストを活かし、DB/Auth/KYB/RBAC/External/Operationsを段階差替できる |
+| C | Managed BaaS-heavy | reject: 契約・監査・マニフェスト要件が外部仕様へ過剰依存する |
+
+### Release Gates
+- G0 DB: production profile でin-memory repositoryが起動不能。状態の真実はPostgreSQL/PostGISのみ。
+- G1 Auth: 単一API_KEYを廃止し、組織ユーザー、サービスアカウント、招待制オンボーディング、MFA対応OIDC/JWTを強制。
+- G2 KYB: OwnerEntityはKYB verifiedになるまで取引・承認・外部契約・マニフェスト操作不可。
+- G3 Authorization: RBAC + MandateScope + OntologyView Dynamic SecurityがAPI/DB/Workflowで一貫して強制される。
+- G4 External: 電子契約・電子マニフェストはsandbox/prod Adapter、idempotency、署名検証、監査ログ、リトライ/DLQを備える。
+- G5 Compliance: 食品リサイクル法、廃棄物処理法、取適法、個人情報/営業秘密、契約証跡について法務レビュー済み。
+- G6 Operations: secrets, observability, backup/restore, incident response, SLO, rate limit, abuse detection が本番運用可能。
+- G7 Security: SAST/DAST/dependency/container/IaC scan、pen test、cross-vendor review、修正確認が完了。
+- G8 Evidence: release evidence pack に全検証結果、既知リスク、残リスク受容、rollback手順を保存。
+
+### Blocked Business / Vendor Decisions
+| ID | Status | Decision Needed | Why It Blocks | Owner |
+|---|---|---|---|---|
+| BD1 | blocked | OIDC/IdP provider and tenant model selection | JWT issuer/JWKS, org mapping, MFA policy, SCIM可否が実装に影響 | Human + Coordinator |
+| BD2 | blocked | KYB provider or internal KYB operation model | 必要書類、審査ステータス、webhook、再審査周期がDB/API/UIに影響 | Human + Legal/Ops |
+| BD3 | blocked | 電子契約サービス provider | 署名フロー、本人確認、webhook、証跡保管方式がAdapterに影響 | Human + Legal/Ops |
+| BD4 | blocked | 電子マニフェスト/JWNET等の接続方式と資格情報 | API利用可否、代理操作範囲、法定保管要件がAdapterに影響 | Human + Legal/Ops |
+| BD5 | blocked | Production hosting and data residency target | network, secrets, backup, monitoring, WAF, log retention設計に影響 | Human + Platform |
+
+## Phase G: Production Architecture & Risk Closure
+
+| ID | Status | Owner | Depends On | Write Scope | Task | Acceptance | Verification | Evidence |
+|---|---|---|---|---|---|---|---|
+| T200 | done | Codex CLI | none | tasks.md, docs/state.md, docs/decisions.md, docs/issues.md, docs/production-readiness.md | README記載リスクを本番Release Gateへ変換し、既存MVPとの差分・blocking decisions・優先順位を確定する。 | `docs/production-readiness.md` にリスク、対策、Release Gate、担当、期限、残リスク受容条件がある。 | `rtk git diff --check`; `node scripts/verify.mjs` | review accepted; docs/production-readiness.md added |
+| T201 | done | Codex CLI | T200 | docs/decisions.md, docs/context/Admith_Technical_Design.md | Step 4採用アーキテクチャを確定する。B案（既存Ports背後の段階的本番化）を正式決定し、DB/Auth/KYB/RBAC/External/Operationsの境界を追記する。 | D030として恒久判断が追加され、設計書にproduction profileとdemo profileの境界が明記される。 | `rtk git diff --check`; `node scripts/verify.mjs` | review accepted; D030 + Technical Design §3.2 |
+| T202 | done | Codex CLI | T200 | docs/threat-model.md, docs/data-classification.md | STRIDE/LINDDUNベースの脅威モデルとデータ分類を作成する。契約条件、法人情報、KYB書類、監査ログ、マニフェスト、署名証跡を分類する。 | API/DB/外部連携/ダッシュボード/運用者の脅威、対策、検証タスクが網羅される。 | security review checklist; `rtk git diff --check` | review accepted; docs/threat-model.md and docs/data-classification.md added |
+| T203 | done | Codex CLI | T200 | backend/src/admith/config.py, backend/src/admith/api/runtime.py, backend/src/admith/adapters/*_stub.py, docker-compose.yml, .env.example, tests/test_config.py | runtime profileを導入する。`ADMITH_RUNTIME=demo|production` を定義し、productionではin-memory runtimeとstub external adapterが起動不能にする。 | production profileでin-memory/stubが選ばれると起動時に明示エラー。demo profileは既存デモが維持される。 | `rtk pytest -q`; `rtk ruff check backend/src tests` | FastAPI lifespan check added; 22 tests passed |
+
+## Phase H: Database Persistence Cutover
+
+| ID | Status | Owner | Depends On | Write Scope | Task | Acceptance | Verification | Evidence |
+|---|---|---|---|---|---|---|---|
+| T210 | done | Codex CLI | T203 | backend/src/admith/adapters/db/, backend/alembic/versions/, tests/, docs/db-schema-audit.md | ORM/Alembic gap audit。Pydantic domain model、ORM、migration、repository portの全フィールド対応表を作り、不足列・制約・index・enum driftを修正する。 | 全domain modelがDBへ保存/復元可能。enum、FK、unique、check、index、append-only audit triggerがmigrationに存在。 | `rtk pytest -q`; `alembic upgrade head` in test DB; migration drift check | static gap fixes reviewed; D031/D032 added; DB upgrade still pending |
+| T211 | doing | Codex CLI | T210 | backend/src/admith/adapters/db/repositories.py, backend/src/admith/adapters/db/session.py, tests/ | SQLAlchemy async repositoryを本番実装する。Resource/Negotiation/Audit/Owner/Agent/Approval/Feedbackをin-memory同等APIで実装する。 | 既存in-memory repository testsと同一contract testsがDB repositoryでも通過。 | `rtk pytest tests -q`; transaction rollback tests | partial Resource/Negotiation/Audit adapter added; DB contract tests pending |
+| T212 | ready | Codex CLI | T211 | backend/src/admith/api/dependencies.py, backend/src/admith/api/main.py, backend/src/admith/api/runtime.py, tests/ | FastAPI dependency injectionとUnit of Workを導入し、APIからmodule global singletonを排除する。`ensure_production_safe_settings()` はlifespan起動時にも実行済みで、DI導入時も維持する。 | API requestごとにDB session/transactionが管理され、rollback時に部分書込が残らない。 | API integration tests with test DB; `rtk ruff check backend/src tests` | API DI tests |
+| T213 | ready | Codex CLI | T212 | backend/src/admith/domain/, backend/src/admith/adapters/db/repositories.py, tests/ | 競合制御を本番化する。resource lockは`SELECT FOR UPDATE SKIP LOCKED`、lock_token、locked_until lease、idempotency keyで二重交渉を防ぐ。 | 同一Resourceへの並行交渉開始で1件のみ成功し、重複リクエストはidempotent responseになる。 | concurrent pytest; DB isolation tests | race-condition evidence |
+| T214 | ready | Codex CLI | T212 | scripts/seed_demo.py, scripts/migrate_demo_data.py, docs/INSTALL.md | demo seedをDB repository対応へ移行する。in-memory専用seedや実行手順を廃止/分離する。 | `scripts/seed_demo.py` がproduction-like DBにOwner/Agent/Mandate/Resourceを投入し、再実行しても重複しない。 | seed integration test; smoke test | seed output |
+| T215 | ready | Codex CLI | T214 | backend/src/admith/api/runtime.py, backend/src/admith/adapters/repositories.py, tests/, README.md | production pathからin-memory runtime依存を除去する。demo用in-memoryは明示的にtest/demo moduleへ隔離する。 | production import graphに`InMemory*Repository`が含まれない。READMEのCurrent ScopeからDB未永続化リスクを削除できる。 | import graph check; `rtk rg "InMemory" backend/src/admith/api backend/src/admith/adapters`; full test suite | cutover evidence |
+
+## Phase I-N Remaining Production Tasks
+
+| ID | Status | Blocks | Summary |
+|---|---|---|---|
+| T220-T224 | blocked/ready after T220 | BD1 | OIDC/organization user auth, membership, invite-only onboarding, dashboard OIDC migration |
+| T230-T234 | blocked/ready after T230 | BD2 | KYB SOP, KYB schema, provider adapter, KYB transaction gate, KYB operations UI |
+| T240-T244 | ready after T220/T230 | BD1, BD2 | RBAC/ABAC matrix, authorization service, tenant guard/RLS, OntologyView security, dashboard authz |
+| T250-T255 | blocked/ready after T250 | BD3, BD4 | e-contract and manifest provider design, external job schema, adapters, workflow, operations UI |
+| T260-T265 | blocked/ready after T260 | BD5 | production hosting, config hardening, observability, backup/restore, abuse protection, security automation |
+| T270-T276 | blocked/ready after dependencies | BD1-BD5 + independent reviews | legal/security review, production E2E, performance, audit export, release docs, RC evidence |
+
+## Step 4 Current Blockers
+| ID | Blocks | Required Action | Owner |
+|---|---|---|---|
+| BD1 | T220-T224 | IdP/OIDC provider and tenant model decision | Human |
+| BD2 | T230-T234 | KYB provider or internal KYB SOP decision | Human + Legal/Ops |
+| BD3 | T250/T252/T254/T255 | 電子契約provider decision | Human + Legal/Ops |
+| BD4 | T250/T253/T254/T255 | 電子マニフェスト接続方式 decision | Human + Legal/Ops |
+| BD5 | T260-T265 | Production hosting/data residency decision | Human + Platform |
+
+## Step 4 Definition of Done
+- in-memory runtime and stub adapters cannot be used in production profile.
+- Organization/user authentication, invite-only onboarding, service account auth, and MFA-capable OIDC are enforced.
+- KYB verified status is required before all business-critical actions.
+- RBAC/ABAC, MandateScope, OntologyView filtering, and DB tenant isolation all agree.
+- External contract and manifest integrations have sandbox/prod adapters, webhook signature verification, idempotency, retries, DLQ, and audit evidence.
+- Human Final Approval remains mandatory before signing, settlement, contract issuance, or manifest finalization.
+- Audit export can prove negotiation, approval, contract, manifest, settlement, and feedback history without mutable gaps.
+- Security, legal, ops, load, restore, and cross-vendor reviews are complete with no unresolved HIGH/CRITICAL issues.

@@ -8,6 +8,7 @@ from admith.adapters.repositories import (
     InMemoryNegotiationRepository,
     InMemoryResourceRepository,
 )
+from admith.config import ensure_demo_runtime_allowed
 from admith.domain.approval import ApprovalWorkflow
 from admith.domain.models import (
     Agent,
@@ -21,6 +22,8 @@ from admith.domain.models import (
 )
 from admith.domain.orchestrator import NegotiationOrchestrator
 from admith.domain.settlement import SettlementService
+
+ensure_demo_runtime_allowed("admith.api.runtime")
 
 resources = InMemoryResourceRepository()
 negotiations = InMemoryNegotiationRepository()
