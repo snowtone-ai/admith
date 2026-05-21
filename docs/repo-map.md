@@ -30,7 +30,7 @@
 | scripts/ | Automation | medium | verify.mjs is the structure check; run_poc.py executes the PoC comparison |
 | poc/ | Step 2 negotiation PoC source | high | Rule Engine, Compliance reasons, Action state path, OntologyView/Mandate boundary, structured CNP, natural-language baseline, comparison metrics |
 | backend/ | FastAPI backend | high | Hexagonal structure, domain models, Ports, adapters, API, Alembic |
-| dashboard/ | Operator Dashboard | high | Next.js 15 App Router, Tailwind UI, API wrapper, login shell |
+| dashboard/ | Operator Dashboard | high | Next.js 15 App Router, Tailwind UI, API wrapper, login shell, resource/negotiation/audit flows |
 | db/ | Database initialization | low | PostGIS and uuid-ossp init SQL |
 | tests/ | Python PoC tests | high | unittest coverage for convergence, Compliance rejection, Action state path, and OntologyView mandate checks |
 | .claude/ | Claude project settings | low | Minimal .env read deny |
@@ -58,6 +58,8 @@
 | node_modules/ | ignored dependency output |
 | dist/ | ignored build output |
 | build/ | ignored build output |
+| dashboard/.next/ | ignored Next.js build output; must not be tracked |
+| *.tsbuildinfo | ignored TypeScript incremental cache |
 | __pycache__/ | ignored Python cache |
 | *.pyc | ignored Python bytecode |
 | .env, .env.* | ignored secrets; do not read |

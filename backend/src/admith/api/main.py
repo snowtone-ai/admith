@@ -46,7 +46,9 @@ app = FastAPI(title="Admith MVP", version="0.1.0")
 
 
 def require_api_key(authorization: str | None = Header(default=None)) -> None:
-    expected = os.getenv("API_KEY", "test-key")
+    expected = os.getenv("API_KEY")
+    if not expected:
+        raise HTTPException(status_code=503, detail="api_key_not_configured")
     if not hmac.compare_digest(authorization or "", f"Bearer {expected}"):
         raise HTTPException(status_code=401, detail="invalid_api_key")
 
@@ -101,7 +103,9 @@ async def create_negotiation(payload: NegotiationCreate):
     if resource is None:
         raise HTTPException(status_code=404, detail="resource_not_found")
     negotiation = Negotiation(initiator_agent_id=agent.agent_id, resource_id=resource.resource_id)
-    await resources.lock_available(resource.resource_id, negotiation.negotiation_id)
+    locked = await resources.lock_available(resource.resource_id, negotiation.negotiation_id)
+    if locked is None:
+        raise HTTPException(status_code=409, detail="resource_unavailable")
     scenario = scenario_from_resource(resource, payload.buyer_max_price_yen_per_kg)
     engine = RuleEngine()
     agreement = engine.evaluate(scenario, engine.fair_price(scenario))
@@ -139,6 +143,8 @@ async def get_negotiation(negotiation_id: UUID):
 
 @app.post("/negotiations/{negotiation_id}/approve", dependencies=[Depends(require_api_key)])
 async def approve_negotiation(negotiation_id: UUID, payload: DecisionRequest):
+    if not payload.reason:
+        raise HTTPException(status_code=400, detail="reason_required")
     negotiation = await negotiations.get(negotiation_id)
     if negotiation is None:
         raise HTTPException(status_code=404, detail="negotiation_not_found")
@@ -179,6 +185,8 @@ async def reject_negotiation(negotiation_id: UUID, payload: DecisionRequest):
     negotiation = await negotiations.get(negotiation_id)
     if negotiation is None:
         raise HTTPException(status_code=404, detail="negotiation_not_found")
+    if negotiation.state != NegotiationState.PENDING_HUMAN_APPROVAL:
+        raise HTTPException(status_code=400, detail="approval_not_pending")
     agreement = agreements.get(negotiation_id)
     request = approval_requests.get(negotiation_id)
     if agreement is None or request is None:

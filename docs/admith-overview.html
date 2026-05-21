@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admith Overview</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: "Yu Gothic", "Meiryo", sans-serif;
+        color: #263126;
+        background: #fbfaf4;
+        line-height: 1.8;
+      }
+      main {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 48px 24px;
+      }
+      h1, h2 {
+        line-height: 1.3;
+      }
+      h1 {
+        font-size: 42px;
+        margin-bottom: 12px;
+      }
+      h2 {
+        margin-top: 40px;
+        border-left: 6px solid #527853;
+        padding-left: 12px;
+      }
+      .lead {
+        font-size: 20px;
+        color: #485246;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+      }
+      .box {
+        border: 1px solid #d8decf;
+        background: #ffffff;
+        border-radius: 10px;
+        padding: 18px;
+      }
+      .flow {
+        padding: 0;
+        list-style: none;
+      }
+      .flow li {
+        margin: 10px 0;
+        padding: 12px 14px;
+        background: #eef3e9;
+        border-radius: 8px;
+      }
+      code {
+        background: #eef3e9;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Admith</h1>
+      <p class="lead">Admithは、企業間の食品廃棄物を「捨てるコスト」から「再利用できる取引」に変えるためのMVPです。</p>
+
+      <h2>何を解決するか</h2>
+      <div class="grid">
+        <div class="box">食品メーカーは、廃棄予定の食品副産物や余剰品を登録できます。</div>
+        <div class="box">飼料・肥料・アップサイクル事業者は、条件に合う資源を取引候補として扱えます。</div>
+        <div class="box">交渉、承認、決済記録、監査ログを一つの流れで残せます。</div>
+      </div>
+
+      <h2>重要な設計思想</h2>
+      <p>Admithでは、AIに契約判断を任せません。価格、制約、合意条件は決定論的なRule Engineで確定します。AIは将来的に候補整理や説明補助に使えますが、契約を確定する権限は持ちません。</p>
+      <p>署名・決済・契約確定の前には、必ず人間の最終承認を挟みます。これは企業利用、法規制、監査可能性を前提にした安全装置です。</p>
+
+      <h2>基本の業務フロー</h2>
+      <ol class="flow">
+        <li>企業オペレーターが食品廃棄物リソースを登録する。</li>
+        <li>システムがリソースをロックし、二重取引を防ぐ。</li>
+        <li>Rule Engineが価格・法令・利用用途の条件を検証する。</li>
+        <li>合意案ができたら、人間の承認待ちにする。</li>
+        <li>承認後にSettlementへ進み、監査ログとフィードバック記録を残す。</li>
+      </ol>
+
+      <h2>画面でできること</h2>
+      <div class="grid">
+        <div class="box"><strong>Dashboard</strong><br />交渉数、承認待ち、Delta金額を確認します。</div>
+        <div class="box"><strong>Resources</strong><br />食品廃棄物を登録し、交渉を開始します。</div>
+        <div class="box"><strong>Negotiations</strong><br />交渉状態、合意条件、承認画面への導線を確認します。</div>
+        <div class="box"><strong>Audit</strong><br />取引の時系列ログを確認します。</div>
+      </div>
+
+      <h2>現在の位置づけ</h2>
+      <p>このMVPは、企業デモと設計検証のためのPhase 0です。本番運用前には、組織ユーザー認証、KYB運用、DB永続化、権限管理、秘密情報管理、外部契約・マニフェスト連携の本番実装が必要です。</p>
+
+      <h2>ローカル起動</h2>
+      <p><code>.env</code> に <code>API_KEY</code> を設定し、<code>docker compose up -d --build</code> を実行します。画面は <code>http://localhost:3000</code> です。</p>
+    </main>
+  </body>
+</html>

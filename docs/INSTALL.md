@@ -5,9 +5,9 @@
 - Docker Compose v2
 
 ## 起動
-1. `.env.example` を参考に `.env` を作成します。
+1. `.env.example` を参考に `.env` を作成し、`API_KEY` を推測されにくい値へ変更します。
 2. `docker compose up -d --build` を実行します。
-3. `http://localhost:3000` を開き、APIキー `test-key` でログインします。
+3. `http://localhost:3000` を開き、`.env` の `API_KEY` でログインします。
 
 ## デモデータ
 Backend起動後に以下を実行します。

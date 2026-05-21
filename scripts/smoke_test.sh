@@ -1,7 +1,15 @@
 #!/bin/bash
 set -e
+
+if [ -f .env ]; then
+  set -a
+  . ./.env
+  set +a
+fi
+
 BASE=${BASE:-http://localhost:8000}
-AUTH="Authorization: Bearer ${API_KEY:-test-key}"
+: "${API_KEY:?API_KEY must be set in .env or the shell environment}"
+AUTH="Authorization: Bearer ${API_KEY}"
 
 curl -sf "$BASE/health" >/dev/null
 RES=$(curl -sf -X POST "$BASE/resources" -H "$AUTH" -H "Content-Type: application/json" \

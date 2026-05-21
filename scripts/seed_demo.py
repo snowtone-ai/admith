@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import json
+import os
 import urllib.request
 
 BASE = "http://localhost:8000"
-HEADERS = {"Authorization": "Bearer test-key", "Content-Type": "application/json"}
+API_KEY = os.environ.get("API_KEY")
+if not API_KEY:
+    raise RuntimeError("API_KEY must be set before running seed_demo.py")
+HEADERS = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
 
 
 def post(path: str, payload: dict[str, object]) -> dict[str, object]:

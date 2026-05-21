@@ -22,12 +22,17 @@ export function ApproveClient({ negotiationId }: { negotiationId: string }) {
 
   async function submit() {
     if (!detail?.displayed_terms_hash) return;
+    if (!reason) return;
     const path = decision === "approve" ? "approve" : "reject";
-    await apiFetch(`/negotiations/${negotiationId}/${path}`, {
-      method: "POST",
-      body: JSON.stringify({ reason, displayed_terms_hash: detail.displayed_terms_hash })
-    });
-    location.href = `/negotiations/${negotiationId}`;
+    try {
+      await apiFetch(`/negotiations/${negotiationId}/${path}`, {
+        method: "POST",
+        body: JSON.stringify({ reason, displayed_terms_hash: detail.displayed_terms_hash })
+      });
+      location.href = `/negotiations/${negotiationId}`;
+    } catch (error) {
+      setMessage(String(error));
+    }
   }
 
   return (
@@ -42,7 +47,7 @@ export function ApproveClient({ negotiationId }: { negotiationId: string }) {
         <label><input type="radio" checked={decision === "reject"} onChange={() => setDecision("reject")} /> reject</label>
       </fieldset>
       <textarea className="w-full rounded-xl border p-3" placeholder="reason" value={reason} onChange={(event) => setReason(event.target.value)} />
-      <Button onClick={submit} disabled={!detail || (decision === "reject" && !reason)}>送信</Button>
+      <Button onClick={submit} disabled={!detail || !reason || detail.state !== "pending_human_approval"}>送信</Button>
       {message ? <p>{message}</p> : null}
     </main>
   );

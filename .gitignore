@@ -6,4 +6,6 @@ __pycache__/
 *.pyc
 dist/
 build/
+.next/
+*.tsbuildinfo
 .DS_Store
