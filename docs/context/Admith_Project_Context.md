@@ -1,6 +1,7 @@
 # Admith — プロジェクトコンテキスト
 **用途:** VSCode Claude Code / Codex に渡す補助コンテキスト  
 **役割:** ビジネス戦略書・技術設計書に入らない判断経緯・監査結果・開発方針をまとめる
+**注意（2026-05-21更新）:** 本文中のGeminiモデル名・単価・性能前提は作成時点の情報を含む。実装・検証時は固定モデル名（例: `gemini-1.5-*`）を前提にせず、利用時点で利用可能なモデル名/料金を都度確認すること。
 
 ---
 
@@ -113,7 +114,7 @@ npx skills@latest add mattpocock/skills/handoff
 | DB | PostgreSQL + PostGIS | JSONB・地理・RLS・SELECT FOR UPDATE |
 | キャッシュ | Redis | キャッシュのみ。状態の真実はDB |
 | Workflow | Temporal or Inngest | Durable Execution。SPOF解消 |
-| LLM | Gemini 1.5 Flash（初期） | コスト$0.40/Mトークン。Abstractionで切替可能 |
+| LLM | Gemini Flash系（初期。実行時に利用可能モデルを解決） | モデル名・単価は時点依存。Abstractionで切替可能 |
 | 認証 | OAuth 2.1 | B2B標準 |
 | 署名 | Ed25519 | メッセージ署名（法的署名は電子契約サービス） |
 | 電子契約 | クラウドサイン等 | 日本法対応の電子契約基盤 |
@@ -166,9 +167,25 @@ Step 1: ★完了
   システム全体アーキテクチャ設計（本ドキュメント群）
 
 Step 2: 次に実行
-  Gemini APIで4者間交渉のPoC
-  - 交渉が30秒以内に収束するか検証
-  - 200行程度の検証コード（捨てるコード想定）
+  Gemini APIで交渉PoC（2バリアント）
+
+  Variant A: Rule Engine + 構造化CNP交渉
+    - 現設計のExtended CNP（簡略化版）をGemini APIで実装
+    - 交渉はメッセージタイプ（cfp/proposal/counter/accept）で構造化
+    - 価格判定はRule Engine
+
+  Variant B: 純LLM自然言語交渉（Project Deal型）
+    - 交渉をLLMの自然言語会話で実行
+    - 構造化制約はRule Engineが背後で評価
+    - 合意内容をLLMからJSON抽出
+
+  比較指標:
+    - 交渉成立率
+    - 価格の一貫性（同条件で複数回実行時の分散）
+    - 監査可能性（合意根拠を後から説明できるか）
+    - 法的制約の遵守率（飼料化優先等）
+    - API コスト / レイテンシ
+    - コードの複雑性
 
 Step 3: 実装開始
   pm-zero v9.4のPhase 1-3に従い、

@@ -1,7 +1,8 @@
 # Admith — 技術設計書
 **用途:** VSCode Claude Code / Codex に渡すプロジェクトコンテキスト  
-**バージョン:** v2（ChatGPT 5.5 Thinking監査反映済み）  
+**バージョン:** v3（v2 ChatGPT監査 + Palantir Ontology-as-Backbone統合 D019-D024）  
 **スコープ:** Phase 0 実装設計 + Phase 1-3 の予備設計
+**注意（2026-05-21更新）:** LLMのモデル名・価格・提供可否は変動するため、実装時は固定モデル名をハードコードせず、利用時点の利用可能モデルに解決すること。
 
 ---
 
@@ -63,7 +64,10 @@ L3: Agent Runtime
 L2: Domain Knowledge & Intelligence
     ├─ FoodWasteDomain (Phase 0直書き)
     ├─ Compliance Rule Engine
-    └─ Resource Ontology Service
+    └─ Resource Ontology Service ★D020: 三層設計に昇格
+        ├─ Semantic Layer: Object Types, Link Types, Property Types
+        ├─ Kinetic Layer: Action Types（型付き操作）, Functions（読み取り専用計算）
+        └─ Dynamic Security Layer: Agent Mandate, Negotiation Scope, Audit Propagation
 
 L1: Foundation
     ├─ LLM Abstraction Layer (vendor-agnostic)
@@ -89,6 +93,43 @@ L1: Foundation
 | Human-in-the-Loop Default | 実取引は人間承認をデフォルトON |
 | Defense in Depth | Agent Policy / Orchestrator / Circuit Breaker の3層 |
 | LLMを契約判断から排除 | 価格・制約判定はRule Engine。LLMは文面生成・要約のみ |
+| Agent Quality Fairness | Admithマーケットプレイス内では全参加エージェントに同一モデルTierを強制。Accordでは使用モデルの開示を義務化。Project Dealで判明した「品質格差の不可視性」への対策 |
+| Ontology-as-Backbone | Resource Ontology三層（Semantic/Kinetic/Dynamic Security）を設計原則としてHexagonal内に収容。Palantir哲学のうちミッション整合部分のみ採用（D019） |
+| AI on Ontology | LLMはOntologyView（型付き・権限適用済み）のみ受け取る。raw data直接アクセス不可。D007の構造的保証（D022） |
+| Action as First-Class Citizen | 全状態遷移はpreconditions/mutations/postconditions/audit_eventを持つ型付きActionで記録。監査・テスト・コンプライアンスの構造的保証（D023） |
+| Closed-Loop Operations | Settlement結果をTrust Score・価格指数・Mandate調整・Matching重みに還元するフィードバックループ（D021） |
+| Proposal-Based Feedback | Human Approval承認/却下メタデータをAgent Mandate自動調整に還元。承認率の継続的改善（D024） |
+
+---
+
+## 3.1 恒久Port契約（Step 3実装境界）
+
+Step 3以降は以下のPortを先に固定し、FastAPI、DB、LLM、Workflow EngineはAdapterとして接続する。これによりL1-L7の欠落IF、LLM raw prompt混入、PoCから本番への密結合移行を防ぐ。
+
+```python
+class OntologyViewPort(Protocol):
+    def build_view(self, subject_id: UUID, mandate: AgentMandate) -> OntologyView: ...
+
+class ComplianceRulePort(Protocol):
+    def evaluate(self, terms: Terms, resource: ResourceEnvelope) -> ComplianceResult: ...
+
+class ActionExecutorPort(Protocol):
+    def execute(self, action: ActionType, context: ActionContext) -> ActionResult: ...
+
+class ApprovalPort(Protocol):
+    def request_approval(self, agreement: Agreement) -> ApprovalRequest: ...
+
+class FeedbackSinkPort(Protocol):
+    def record_settlement_feedback(self, agreement: Agreement, outcome: SettlementOutcome) -> None: ...
+```
+
+LLM Adapterの公開入口は文字列promptを受け取らない。文字列化はAdapter内部の最終段階に限定する。
+
+```python
+class LLMProvider(Protocol):
+    async def complete_view(self, view: OntologyView, task: LLMTask,
+                            max_tokens: int, temperature: float) -> CompletionResult: ...
+```
 
 ---
 
@@ -145,14 +186,24 @@ mandate_id              UUID PK
 agent_id                UUID FK
 owner_entity_id         UUID FK
 scope                   JSONB  -- 許可されたドメイン・品目・地域
+allowed_object_types    JSONB  -- Dynamic Security: Resource/Agreement等のObject Type
+allowed_actions         JSONB  -- Dynamic Security: 実行可能なAction Type
+allowed_regions         JSONB  -- 地域・拠点スコープ
+property_markings       JSONB  -- Propagating Security用の属性marking
+propagation_markings    JSONB  -- 派生データへ伝播させるmarking
 max_amount_per_deal     DECIMAL
 max_amount_per_day      DECIMAL
+max_quantity_per_deal   DECIMAL NULL
+currency                VARCHAR DEFAULT 'JPY'
 allowed_counterparties  JSONB NULL  -- NULLなら制限なし
 approval_mode           ENUM (approve_all, approve_above_threshold,
                               auto_within_mandate, dual_control)
 approval_threshold      DECIMAL NULL
 valid_from              TIMESTAMPTZ
 valid_until             TIMESTAMPTZ
+version                 INT
+revoked_at              TIMESTAMPTZ NULL
+revoked_reason          TEXT NULL
 mandate_signature       BYTES  -- 権限委任者の署名
 created_at              TIMESTAMPTZ
 ```
@@ -163,7 +214,9 @@ resource_id         UUID PK
 owner_agent_id      UUID FK
 domain_id           VARCHAR FK
 resource_type       VARCHAR
-attributes          JSONB  -- ドメイン固有属性
+attributes          JSONB  -- ドメイン固有属性。共通Envelope外へ漏らさない
+ontology_version    VARCHAR  -- Resource Envelope互換性管理
+security_markings   JSONB  -- OntologyView/AuditEventへ伝播
 state               ENUM (available, locked, transferred, expired)
 lock_token          UUID NULL  -- ★二重ロック防止
 locked_by_negotiation_id UUID NULL
@@ -179,10 +232,9 @@ created_at          TIMESTAMPTZ
 negotiation_id      UUID PK
 initiator_agent_id  UUID FK
 resource_id         UUID FK
-state               ENUM (cfp_open, bidding, cross_matching,
-                          iterating, draft_agreement,
+state               ENUM (cfp_open, negotiating, draft_agreement,
                           pending_human_approval,  -- ★監査で追加
-                          signing, in_escrow, settled,
+                          signing, settled,
                           failed, expired)
 protocol_version    VARCHAR
 tier                INT (1, 2, 3)
@@ -264,10 +316,13 @@ decided_at          TIMESTAMPTZ
 event_id            UUID PK
 negotiation_id      UUID FK NULL
 agent_id            UUID FK NULL
+action_id           UUID NULL
 event_type          VARCHAR
 event_data          JSONB
+sequence_number     BIGINT
 previous_hash       BYTES
-event_hash          BYTES  -- SHA256(event_data || timestamp || previous_hash)
+hash_algorithm      VARCHAR  -- 例: sha256-canonical-json-v1
+event_hash          BYTES  -- SHA256(canonical_event_data || sequence_number || previous_hash)
 timestamp           TIMESTAMPTZ
 -- PIIは分離テーブルに保持。保持期間・アクセス権を別管理
 ```
@@ -281,25 +336,57 @@ input_signals       JSONB
 calculated_at       TIMESTAMPTZ
 ```
 
+#### PriceSignalHistory ★D021恒久化
+```sql
+price_signal_id     UUID PK
+domain_id           VARCHAR
+resource_type       VARCHAR
+region              VARCHAR
+unit_price_yen      DECIMAL
+quantity_kg         DECIMAL
+agreement_id        UUID FK
+calculated_at       TIMESTAMPTZ
+```
+
+#### MandateAdjustmentRecommendation ★D024恒久化
+```sql
+recommendation_id   UUID PK
+agent_id            UUID FK
+owner_entity_id     UUID FK
+approval_rate       DECIMAL(5,4)
+reject_reasons      JSONB
+recommended_change  JSONB
+status              ENUM (proposed, accepted, rejected, expired)
+created_at          TIMESTAMPTZ
+```
+
+#### MatchingOutcomeMetric ★D021恒久化
+```sql
+metric_id           UUID PK
+domain_id           VARCHAR
+matching_policy     VARCHAR
+candidate_count     INT
+negotiation_id      UUID FK
+outcome             ENUM (settled, failed, expired, rejected)
+elapsed_seconds     DECIMAL
+created_at          TIMESTAMPTZ
+```
+
 ---
 
 ## 5. Negotiation Orchestrator 状態機械
 
 ```
 [CFP_OPEN]
-  │(候補者揃う)
+  │(Matching Engineが候補を選定)
   ▼
-[BIDDING]
-  │(提案集約完了)
+[NEGOTIATING]
+  │ 自然言語での自由交渉フェーズ
+  │ Rule Engineが法的制約をリアルタイム評価
+  │ Circuit Breakerが異常を監視
   ▼
-[CROSS_MATCHING]
-  │(マッチ候補確定)
-  ▼
-[ITERATING] ◀──┐
-  │             │(カウンター、最大3ラウンド)
-  │(全員合意)   │
-  ▼             │
 [DRAFT_AGREEMENT]
+  │ Rule Engineが合意条件を構造化JSONに変換
   │
   ▼
 [PENDING_HUMAN_APPROVAL] ★監査で追加
@@ -313,6 +400,26 @@ calculated_at       TIMESTAMPTZ
 失敗パス: 各段階から → [FAILED] or [EXPIRED]
 ```
 
+状態機械はマイルストーン管理に限定する。旧設計の `BIDDING` / `CROSS_MATCHING` / `ITERATING` は `NEGOTIATING` に統合し、交渉のラウンド数やカウンター回数を厳密には制限しない。ただし、Negotiation TTL、Rule Engineによる法的制約評価、Circuit Breaker、DRAFT_AGREEMENT以降の法的手続きは厳密に維持する。
+
+### Action Type と状態遷移の完全対応 ★恒久対策
+
+| Action Type | Before | After | 主な責務 |
+|---|---|---|---|
+| CreateCFP | Resource.available | cfp_open | Resource lock、Negotiation作成、監査 |
+| SubmitProposal | cfp_open | negotiating | Proposal保存、参加者追加、監査 |
+| CounterOffer | negotiating | negotiating | Counter保存、Rule Engine再評価、監査 |
+| FormAgreement | negotiating | draft_agreement | Terms構造化、ComplianceResult添付、監査 |
+| RequestApproval | draft_agreement | pending_human_approval | ApprovalRequest作成、表示terms hash固定 |
+| ApproveAgreement | pending_human_approval | signing | ApprovalDecision保存、Mandate再検証 |
+| RejectAgreement | pending_human_approval | failed | 却下理由保存、Resource unlock候補化 |
+| SignAgreement | signing | signing | 電子契約サービス連携、署名イベント保存 |
+| SettleDeal | signing | settled | 請求/検品/受領結果保存、Feedback Processor起動 |
+| FailNegotiation | any non-terminal | failed | 失敗理由保存、Resource unlock |
+| ExpireNegotiation | any non-terminal | expired | TTL失効保存、Resource unlock |
+
+DB enum、Workflow state、Action Type名はこの表を単一の設計ソースとする。`bidding`、`cross_matching`、`iterating`、`in_escrow` はPhase 0の状態enumに入れない。
+
 ### TTL 5段階分割 ★監査で追加
 
 ```
@@ -322,6 +429,34 @@ calculated_at       TIMESTAMPTZ
 4. Pickup Deadline TTL: pickup_windowに従う
 5. Settlement TTL:      法定・業務要件に従う
 ```
+
+### Closed-Loop Feedback ★D021
+
+```
+Settlement完了後、以下のフィードバックを次のCFPサイクルに還元:
+
+  Settlement
+   │
+   ▼
+  Feedback Processor
+   ├── Trust Score Recalculation
+   │     Settlement成功/失敗 → Agent Trust Score更新
+   ├── Price Signal Accumulation
+   │     合意価格 → ドメイン別価格指数に蓄積
+   ├── Mandate Adjustment Signal  ★D024
+   │     Approval承認率 → Mandate緩和/厳格化の推奨
+   └── Matching Quality Signal
+         交渉成立率 → Matching Engineの重み調整
+
+Phase 0: Trust ScoreとPrice Signalは記録のみ（DB蓄積）。
+Phase 1: 蓄積データを用いたMandateとMatchingの自動調整を実装。
+```
+
+Phase 0の永続化先:
+- Trust Score: `TrustScoreHistory`
+- Price Signal: `PriceSignalHistory`
+- Mandate Adjustment: `MandateAdjustmentRecommendation`（自動適用はしない）
+- Matching Quality: `MatchingOutcomeMetric`
 
 ---
 
@@ -356,6 +491,11 @@ Tier 3: Pro系LLM → 複雑な多者間交渉の5%
 
 ★重要: LLMを契約判断（価格・制約・合意条件）に使わない。
   決定論的Rule Engineで確定し、LLMは補助的文面生成のみ。
+
+★Project Deal知見: モデル品質 >>> プロンプト戦略。
+  Tier選択（model_tier）がエージェントの交渉力を最も強く規定する。
+  strategy（cooperative/aggressive等）は結果に統計的有意な影響を与えない
+  可能性がある。ただし、ユーザーの安心感・コントロール感のために維持する。
 ```
 
 ---
@@ -364,19 +504,33 @@ Tier 3: Pro系LLM → 複雑な多者間交渉の5%
 
 ```python
 class LLMProvider(Protocol):
-    async def complete(self, prompt: str, max_tokens: int,
-                       temperature: float) -> CompletionResult: ...
+    async def complete_view(self, view: OntologyView, task: LLMTask,
+                            max_tokens: int, temperature: float) -> CompletionResult: ...
     @property
     def cost_per_million_tokens(self) -> Decimal: ...
 
 class LLMRouter:
     providers: Dict[Tier, List[LLMProvider]]
-    async def route(self, tier: Tier, prompt: str) -> CompletionResult:
+    async def route(self, tier: Tier, view: OntologyView, task: LLMTask) -> CompletionResult:
         selected = self._select_best(self.providers[tier])
-        return await selected.complete(prompt, ...)
+        return await selected.complete_view(view, task, ...)
 ```
 
-Phase 0: Gemini Flash一本。50行のadapter追加で他社へ切替可能。
+Phase 0: Gemini Flash系を利用（固定モデル名は避ける）。50行のadapter追加で他社へ切替可能。
+
+### AI on Ontology 制約 ★D022
+
+```
+LLMへの入力: OntologyView（型付き・権限適用済み）のみ
+  ├── Agent Mandateでフィルタされたオブジェクトのみ
+  ├── raw DB/API dataの直接注入を構造的に禁止
+  └── Negotiation Scopeでアクセス範囲を制約
+
+LLMからの出力: Action Type Validatorで検証
+  ├── 価格・制約・合意条件を含む出力 → 拒否
+  ├── 文面生成・要約・説明 → 許可
+  └── Rule Engineは生のOntologyオブジェクトを直接操作（LLM経由しない）
+```
 
 ---
 
@@ -393,10 +547,11 @@ class Agent(Protocol):
     async def sign_agreement(self, agreement: Agreement) -> Signature: ...
 
 class AgentPolicy(BaseModel):
-    objective: ObjectiveFunction
-    constraints: List[Constraint]
-    strategy: NegotiationStrategy
-    human_approval_threshold: Optional[Decimal]
+    objective: ObjectiveFunction        # 最重要
+    constraints: List[Constraint]       # 重要
+    strategy: NegotiationStrategy       # best-effort
+    human_approval_threshold: Optional[Decimal]  # 重要
+    model_tier: Tier                    # 最重要パラメータ
 ```
 
 ロールは固定しない。同一エージェントが食品市場ではSeller、物流市場ではBuyerになれる。
@@ -413,11 +568,15 @@ class AgentPolicy(BaseModel):
 | Resource | 二重ロック | SELECT FOR UPDATE SKIP LOCKED + lock_token + locked_until |
 | 監査ログ | 改ざん | Append-only + ハッシュチェーン |
 | API | 不正利用 | OAuth 2.1 + Rate Limit + WAF |
-| Prompt Injection | Resource attributes経由 | LLM入力サニタイズ + 構造化入力強制 |
+| Prompt Injection | Resource attributes経由 | LLM入力サニタイズ + 構造化入力強制 + AI on Ontology（D022: OntologyView経由のみ） |
 | Sybil攻撃 | 自作自演価格操作 | KYB必須 + 招待制 + wash trading検知 |
 | 内部脅威 | 管理者によるスコア改ざん | 二者承認 + 監査ログ + break-glass access |
 | 品質詐欺 | 廃棄物品質偽装 | 受入検品フロー + 品質保証条項（利用規約） |
 | 物流ランサム | 直前値上げ/キャンセル | 代替候補 + 保証金 + ペナルティ |
+| OntologyView権限漏れ | 派生ビュー経由で本来不可視の属性が混入 | AgentMandate + property_markings + 最小フィールド投影 |
+| Propagating Security欠落 | 集計・要約・LLM出力でmarkingが落ちる | security_markingsをResource→OntologyView→AuditEvent→Feedbackへ伝播 |
+| Action権限昇格 | 許可外Actionを直接呼び出す | ActionExecutorでallowed_actionsとpreconditionを一元検証 |
+| Feedback汚染 | 自作自演・異常値がTrust/Matchingを歪める | KYB、wash trading検知、外れ値隔離、手動承認前の自動適用禁止 |
 
 ---
 

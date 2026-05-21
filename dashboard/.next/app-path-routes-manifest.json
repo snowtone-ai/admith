@@ -1,0 +1,10 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/login/page": "/login",
+  "/audit/page": "/audit",
+  "/negotiations/[id]/page": "/negotiations/[id]",
+  "/negotiations/page": "/negotiations",
+  "/page": "/",
+  "/negotiations/[id]/approve/page": "/negotiations/[id]/approve",
+  "/resources/page": "/resources"
+}

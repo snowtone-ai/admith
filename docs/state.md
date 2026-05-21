@@ -2,15 +2,16 @@
 
 ## Current
 - Branch: main
-- Active task: T001（Step 2 PoC着手前）
-- Current executor: none
+- Active task: Step 3 MVP実装完了（Claude Codeレビュー待ち）
+- Current executor: Codex CLI
 - Write lock: none
 - Coordinator: Claude Code
-- Latest verification pointer: initial pm-zero structure generation pending
+- Latest verification pointer: rtk ruff check backend/src tests -> passed; rtk pytest -q -> 15 passed; rtk pnpm build -> passed; node scripts/verify.mjs -> passed
 - Verification mode: quick
 
 ## Current Blocker
-- None
+- Docker CLI unavailable in this environment; docker compose build/smoke not executed locally
 
 ## Next
-- See tasks.md
+- Claude Code review
+- Docker CLI available environmentで docker compose build と scripts/smoke_test.sh を実行
