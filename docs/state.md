@@ -2,11 +2,11 @@
 
 ## Current
 - Branch: main
-- Active task: Step 4 Production Hardening: T200-T203 done; T210 done; T211 doing; BD1-BD5 blocked
+- Active task: Step 4 Production Hardening: T200-T203 done; T210 done; T211/T212 doing; BD1-BD5 blocked
 - Current executor: Codex CLI
 - Write lock: none
 - Coordinator: Codex CLI
-- Latest verification pointer: rtk pytest -q -> 22 passed; rtk ruff check backend/src tests -> passed; node scripts/verify.mjs -> passed
+- Latest verification pointer: rtk ruff check backend/src tests -> passed; rtk pytest -q -> 22 passed; rtk pnpm --prefix dashboard build -> passed; node scripts/verify.mjs -> passed
 - Verification mode: quick
 
 ## Current Blocker

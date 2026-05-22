@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/Input";
+import { Badge } from "@/components/ui/Badge";
 import { apiFetch } from "@/lib/api";
 import { formatKg, formatMaterial, formatRequiredUse, formatYen, friendlyError, resourceStateLabel } from "@/lib/presentation";
 
@@ -51,33 +53,74 @@ export default function ResourcesPage() {
   }
 
   return (
-    <main className="space-y-5">
-      <h1 className="font-display text-4xl">食品残さ管理</h1>
+    <div className="space-y-6">
+      <h1 className="font-display text-[32px] font-semibold tracking-tight" style={{ letterSpacing: "-0.8px" }}>
+        食品残さ管理
+      </h1>
+
       <Card title="新しい食品残さを登録">
-        <div className="grid gap-3 md:grid-cols-4">
-          <input className="rounded-xl border p-3" value={material} onChange={(event) => setMaterial(event.target.value)} aria-label="食品残さの種類" />
-          <input className="rounded-xl border p-3" type="number" value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} aria-label="数量 kg" />
-          <input className="rounded-xl border p-3" type="number" value={disposalCost} onChange={(event) => setDisposalCost(Number(event.target.value))} aria-label="現在の廃棄費 円" />
-          <Button onClick={createResource}>登録</Button>
+        <div className="grid gap-4 md:grid-cols-4">
+          <Input
+            label="食品残さの種類"
+            value={material}
+            onChange={(e) => setMaterial(e.target.value)}
+          />
+          <Input
+            label="数量 (kg)"
+            type="number"
+            value={quantity}
+            onChange={(e) => setQuantity(Number(e.target.value))}
+          />
+          <Input
+            label="現在の廃棄費 (円)"
+            type="number"
+            value={disposalCost}
+            onChange={(e) => setDisposalCost(Number(e.target.value))}
+          />
+          <div className="flex items-end">
+            <Button onClick={createResource} className="w-full">登録</Button>
+          </div>
         </div>
       </Card>
+
       <Card title="登録済みの食品残さ">
         <div className="space-y-3">
           {resources.map((resource) => (
-            <div key={resource.resource_id} className="grid gap-3 rounded-2xl border bg-white p-4 md:grid-cols-[1fr_auto]">
+            <div
+              key={resource.resource_id}
+              className="grid gap-4 rounded-lg border border-hairline bg-canvas p-4 hoverable hover:bg-surface-1 md:grid-cols-[1fr_auto]"
+            >
               <div>
-                <p className="font-semibold">{formatMaterial(resource.attributes.material ?? resource.resource_type)}</p>
-                <p className="text-sm">
-                  状況: {resourceStateLabel(resource.state)} / 数量: {formatKg(resource.attributes.quantity_kg)} / 現在の廃棄費: {formatYen(resource.attributes.disposal_cost_yen)} / 用途: {formatRequiredUse(resource.attributes.required_use)}
+                <p className="font-display text-[16px] font-semibold tracking-tight">
+                  {formatMaterial(resource.attributes.material ?? resource.resource_type)}
                 </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px] text-ink-muted">
+                  <Badge variant={resource.state === "available" ? "positive" : resource.state === "settled" ? "info" : "warning"}>
+                    {resourceStateLabel(resource.state)}
+                  </Badge>
+                  <span>数量: <span className="font-mono tabular-nums">{formatKg(resource.attributes.quantity_kg)}</span></span>
+                  <span>廃棄費: <span className="font-mono tabular-nums text-negative">{formatYen(resource.attributes.disposal_cost_yen)}</span></span>
+                  <span>用途: {formatRequiredUse(resource.attributes.required_use)}</span>
+                </div>
               </div>
-              <Button onClick={() => startNegotiation(resource.resource_id)} disabled={resource.state !== "available"}>交渉開始</Button>
+              <div className="flex items-center">
+                <Button
+                  onClick={() => startNegotiation(resource.resource_id)}
+                  disabled={resource.state !== "available"}
+                  size="sm"
+                >
+                  交渉開始
+                </Button>
+              </div>
             </div>
           ))}
-          {resources.length === 0 ? <p>食品残さはまだ登録されていません。</p> : null}
+          {resources.length === 0 ? (
+            <p className="text-[13px] text-ink-muted">食品残さはまだ登録されていません。</p>
+          ) : null}
         </div>
       </Card>
-      {message ? <p className="text-red-700">{friendlyError(message)}</p> : null}
-    </main>
+
+      {message ? <p className="text-[13px] text-negative">{friendlyError(message)}</p> : null}
+    </div>
   );
 }

@@ -3,8 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/button";
+import { NegotiationTimeline, type TimelineStep } from "@/components/admith/NegotiationTimeline";
 import { apiFetch } from "@/lib/api";
-import { approvalTermsRows, auditEventSummary, auditEventTitle, friendlyError, negotiationStateLabel } from "@/lib/presentation";
+import { approvalTermsRows, auditEventTitle, friendlyError, negotiationStateLabel } from "@/lib/presentation";
 
 type Detail = {
   state: string;
@@ -20,35 +23,63 @@ export function NegotiationDetailClient({ negotiationId }: { negotiationId: stri
     apiFetch<Detail>(`/negotiations/${negotiationId}`).then(setDetail).catch((error) => setMessage(String(error)));
   }, [negotiationId]);
 
+  const timelineSteps: TimelineStep[] = (detail?.audit_events ?? []).map((event, i, arr) => ({
+    id: `${event.sequence_number}-${event.event_type}`,
+    label: auditEventTitle(event.event_type),
+    status: i === arr.length - 1 ? "active" : "completed",
+    timestamp: undefined,
+  }));
+
+  const termRows = approvalTermsRows(detail?.agreement?.terms);
+
   return (
-    <main className="space-y-5">
-      <h1 className="font-display text-4xl">交渉詳細</h1>
+    <div className="space-y-6">
+      <h1 className="font-display text-[32px] font-semibold tracking-tight" style={{ letterSpacing: "-0.8px" }}>
+        交渉詳細
+      </h1>
+
       <Card title="状態">
-        <p>{negotiationStateLabel(detail?.state)}</p>
-        {detail?.state === "pending_human_approval" ? <Link className="mt-3 inline-block font-semibold text-leaf" href={`/negotiations/${negotiationId}/approve`}>決裁内容を確認する</Link> : null}
-      </Card>
-      <Card title="合意案">
-        <dl className="grid gap-3 md:grid-cols-2">
-          {approvalTermsRows(detail?.agreement?.terms).map((row) => (
-            <div key={row.label} className="rounded-xl bg-wheat/30 p-3">
-              <dt className="text-sm text-soil/70">{row.label}</dt>
-              <dd className={row.emphasis ? "text-2xl font-bold" : "font-semibold"}>{row.value}</dd>
-            </div>
-          ))}
-        </dl>
-        {!detail?.agreement ? <p>合意案はまだ作成されていません。</p> : null}
-      </Card>
-      <Card title="これまでの流れ">
-        <div className="space-y-2">
-          {detail?.audit_events.map((event) => (
-            <div key={`${event.sequence_number}-${event.event_type}`} className="rounded-xl border bg-white p-3">
-              <p className="font-semibold">{event.sequence_number}. {auditEventTitle(event.event_type)}</p>
-              <p className="mt-1 text-sm text-soil/75">{auditEventSummary(event.event_data)}</p>
-            </div>
-          ))}
+        <div className="flex items-center gap-3">
+          <Badge variant={detail?.state === "settled" ? "positive" : detail?.state === "pending_human_approval" ? "warning" : "info"}>
+            {negotiationStateLabel(detail?.state)}
+          </Badge>
+          {detail?.state === "pending_human_approval" ? (
+            <Link href={`/negotiations/${negotiationId}/approve`}>
+              <Button size="sm">決裁内容を確認する</Button>
+            </Link>
+          ) : null}
         </div>
       </Card>
-      {message ? <p className="text-red-700">{friendlyError(message)}</p> : null}
-    </main>
+
+      <Card title="合意案">
+        {termRows.length > 0 ? (
+          <dl className="grid gap-3 md:grid-cols-2">
+            {termRows.map((row) => (
+              <div key={row.label} className="rounded-lg bg-surface-2 p-4">
+                <dt className="text-[13px] text-ink-muted">{row.label}</dt>
+                <dd className={[
+                  "mt-1 font-mono tabular-nums",
+                  row.emphasis ? "text-[20px] font-bold" : "text-[15px] font-semibold",
+                ].join(" ")} style={{ fontFeatureSettings: "'tnum', 'lnum'" }}>
+                  {row.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p className="text-[13px] text-ink-muted">合意案はまだ作成されていません。</p>
+        )}
+      </Card>
+
+      <Card title="これまでの流れ">
+        {timelineSteps.length > 0 ? (
+          <NegotiationTimeline steps={timelineSteps} />
+        ) : (
+          <p className="text-[13px] text-ink-muted">タイムラインデータを読み込み中...</p>
+        )}
+      </Card>
+
+      {message ? <p className="text-[13px] text-negative">{friendlyError(message)}</p> : null}
+    </div>
   );
 }

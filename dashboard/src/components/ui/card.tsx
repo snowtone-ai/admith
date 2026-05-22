@@ -1,3 +1,29 @@
-export function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="rounded-3xl border border-wheat/70 bg-white/75 p-5 shadow-sm"><h2 className="font-display text-xl">{title}</h2><div className="mt-3">{children}</div></section>;
+interface CardProps {
+  title?: string;
+  variant?: "default" | "elevated" | "interactive";
+  selected?: boolean;
+  children: React.ReactNode;
+  className?: string;
+}
+
+export function Card({ title, variant = "default", selected, children, className }: CardProps) {
+  const base = "rounded-lg border border-hairline p-6";
+  const variants: Record<string, string> = {
+    default: "bg-surface-1",
+    elevated: "bg-surface-2",
+    interactive: [
+      "bg-surface-1 hoverable cursor-pointer",
+      "hover:bg-surface-2 hover:border-hairline-strong",
+      selected ? "border-l-2 border-l-accent" : "",
+    ].join(" "),
+  };
+
+  return (
+    <section className={[base, variants[variant], className ?? ""].join(" ")}>
+      {title ? (
+        <h2 className="font-display text-base font-semibold tracking-tight text-ink">{title}</h2>
+      ) : null}
+      <div className={title ? "mt-3" : ""}>{children}</div>
+    </section>
+  );
 }
