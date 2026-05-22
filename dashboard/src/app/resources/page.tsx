@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { apiFetch } from "@/lib/api";
+import { formatKg, formatMaterial, formatRequiredUse, formatYen, friendlyError, resourceStateLabel } from "@/lib/presentation";
 
 type Resource = {
   resource_id: string;
@@ -51,30 +52,32 @@ export default function ResourcesPage() {
 
   return (
     <main className="space-y-5">
-      <h1 className="font-display text-4xl">リソース管理</h1>
-      <Card title="新規リソース">
+      <h1 className="font-display text-4xl">食品残さ管理</h1>
+      <Card title="新しい食品残さを登録">
         <div className="grid gap-3 md:grid-cols-4">
-          <input className="rounded-xl border p-3" value={material} onChange={(event) => setMaterial(event.target.value)} aria-label="material" />
-          <input className="rounded-xl border p-3" type="number" value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} aria-label="quantity kg" />
-          <input className="rounded-xl border p-3" type="number" value={disposalCost} onChange={(event) => setDisposalCost(Number(event.target.value))} aria-label="disposal cost yen" />
+          <input className="rounded-xl border p-3" value={material} onChange={(event) => setMaterial(event.target.value)} aria-label="食品残さの種類" />
+          <input className="rounded-xl border p-3" type="number" value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} aria-label="数量 kg" />
+          <input className="rounded-xl border p-3" type="number" value={disposalCost} onChange={(event) => setDisposalCost(Number(event.target.value))} aria-label="現在の廃棄費 円" />
           <Button onClick={createResource}>登録</Button>
         </div>
       </Card>
-      <Card title="登録済みリソース">
+      <Card title="登録済みの食品残さ">
         <div className="space-y-3">
           {resources.map((resource) => (
             <div key={resource.resource_id} className="grid gap-3 rounded-2xl border bg-white p-4 md:grid-cols-[1fr_auto]">
               <div>
-                <p className="font-semibold">{resource.attributes.material ?? resource.resource_type}</p>
-                <p className="text-sm">状態: {resource.state} / 数量: {resource.attributes.quantity_kg}kg / 廃棄費: JPY {resource.attributes.disposal_cost_yen}</p>
+                <p className="font-semibold">{formatMaterial(resource.attributes.material ?? resource.resource_type)}</p>
+                <p className="text-sm">
+                  状況: {resourceStateLabel(resource.state)} / 数量: {formatKg(resource.attributes.quantity_kg)} / 現在の廃棄費: {formatYen(resource.attributes.disposal_cost_yen)} / 用途: {formatRequiredUse(resource.attributes.required_use)}
+                </p>
               </div>
               <Button onClick={() => startNegotiation(resource.resource_id)} disabled={resource.state !== "available"}>交渉開始</Button>
             </div>
           ))}
-          {resources.length === 0 ? <p>リソースはまだありません。</p> : null}
+          {resources.length === 0 ? <p>食品残さはまだ登録されていません。</p> : null}
         </div>
       </Card>
-      {message ? <p className="text-red-700">{message}</p> : null}
+      {message ? <p className="text-red-700">{friendlyError(message)}</p> : null}
     </main>
   );
 }

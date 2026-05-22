@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { apiFetch } from "@/lib/api";
+import { friendlyError, negotiationStateLabel } from "@/lib/presentation";
 
 type Negotiation = {
   negotiation_id: string;
@@ -26,15 +27,15 @@ export default function NegotiationsPage() {
         <div className="space-y-3">
           {rows.map((row) => (
             <Link key={row.negotiation_id} href={`/negotiations/${row.negotiation_id}`} className="block rounded-2xl border bg-white p-4 hover:border-leaf">
-              <p className="font-semibold">{row.state}</p>
-              <p className="break-all text-sm">Negotiation: {row.negotiation_id}</p>
-              <p className="break-all text-sm">Resource: {row.resource_id}</p>
+              <p className="font-semibold">{negotiationStateLabel(row.state)}</p>
+              <p className="break-all text-sm">取引番号: {row.negotiation_id}</p>
+              <p className="break-all text-sm">食品残さ番号: {row.resource_id}</p>
             </Link>
           ))}
-          {rows.length === 0 ? <p>交渉はまだありません。Resourcesから開始してください。</p> : null}
+          {rows.length === 0 ? <p>取引はまだありません。食品残さ画面から開始してください。</p> : null}
         </div>
       </Card>
-      {message ? <p className="text-red-700">{message}</p> : null}
+      {message ? <p className="text-red-700">{friendlyError(message)}</p> : null}
     </main>
   );
 }

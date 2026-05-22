@@ -1,6 +1,6 @@
-# Admith
+# Admith Flow
 
-Admith is a Phase 0 MVP for B2B food-waste matching and negotiation.
+Admith Flow is a Phase 0 MVP for B2B food-waste matching and negotiation.
 
 The product lets verified business operators register food-waste resources, start a deterministic negotiation flow, require human final approval, settle the approved deal, and keep an append-only audit trail.
 
