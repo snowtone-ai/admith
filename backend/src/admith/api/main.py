@@ -8,6 +8,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 
 from admith.api.runtime import (
     active_negotiations_count,
@@ -53,6 +54,13 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="Admith MVP", version="0.1.0", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def require_api_key(authorization: str | None = Header(default=None)) -> None:
