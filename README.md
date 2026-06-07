@@ -1,112 +1,70 @@
 # Admith Flow
 
-Admith Flow is a Phase 0 MVP for B2B food-waste matching and negotiation.
+## 概要
 
-The product lets verified business operators register food-waste resources, start a deterministic negotiation flow, require human final approval, settle the approved deal, and keep an append-only audit trail.
+食品廃棄物の事業者間マッチング・交渉を自動化するB2B向けMVP（最小限の製品）です。廃棄物を提供したい事業者と受け取りたい事業者をシステムがつなぎ、価格・契約条件の交渉を自動で進めます。ただし、最終的な契約確定は必ず人間が承認する仕組みになっており、AIが勝手に契約を結ぶことはありません。
 
-## What This MVP Proves
+---
 
-- Food-waste resources can be registered and locked before negotiation.
-- Price, compliance, and agreement decisions are made by deterministic rule engines, not by an LLM.
-- Human final approval is required before signing or settlement.
-- Settlement emits feedback records for trust, price, mandate, and matching quality.
-- Operators can use a local dashboard to register resources, start negotiations, approve or reject agreements, and inspect audit events.
+## 主な機能
 
-## Architecture
+- 食品廃棄物リソースの登録・管理ができる
+- 事業者間の交渉を自動で進め、価格・コンプライアンス条件を決定論的ルールエンジン（あらかじめ決められたルールに従って判断するシステム）で算出できる
+- 人間の最終承認を経て契約・精算が完了する
+- 交渉の全経緯を改ざん不可能な監査ログとして記録・確認できる
+- オペレーター向けダッシュボードからリソース登録・交渉状況・承認操作ができる
 
-- `backend/`: FastAPI backend with domain services, ports, adapters, in-memory demo runtime, SQLAlchemy ORM, and Alembic migrations.
-- `dashboard/`: Next.js operator dashboard.
-- `db/`: PostgreSQL/PostGIS initialization.
-- `scripts/`: smoke test, verification, PoC, and demo utilities.
-- `tests/`: Python tests for the domain and API flow.
+---
 
-The backend follows a hexagonal architecture. The current demo runtime uses in-memory stores for a simple Docker demo, while database schema and migrations are present for the PostgreSQL path.
+## 技術スタック
 
-## Safety Boundaries
+フロントエンド：Next.js（Reactベースのウェブアプリフレームワーク）
+バックエンド：FastAPI（Python製の高速APIフレームワーク）、SQLAlchemy（データベース操作ライブラリ）、Alembic（データベース構造の変更管理ツール）
+データベース：PostgreSQL / PostGIS（地理情報対応のリレーショナルデータベース）
+インフラ・環境：Docker Compose（複数サービスをまとめて起動・管理するコンテナツール）
 
-- LLMs must not make contract decisions.
-- Human final approval is required before signing, settlement, or any irreversible business action.
-- Phase 0 is food-waste only.
-- Phase 0 assumes KYB-verified and invited counterparties.
-- API keys and runtime secrets must be kept in `.env`; do not commit `.env`.
-- Build artifacts such as `.next/` and `*.tsbuildinfo` are ignored and should not be committed.
+---
 
-## Requirements
+## アーキテクチャの特徴
 
-- Docker Desktop with Docker Compose v2
-- Node.js and pnpm for local dashboard checks
-- Python 3.12 tooling for backend checks
+- ヘキサゴナルアーキテクチャ（業務ロジックを外部システムから切り離す設計）を採用しており、データベースやAPIの差し替えが容易
+- 価格・契約・コンプライアンス判断をAIではなく決定論的ルールエンジンで処理し、判断の再現性・監査可能性を確保
+- 人間の最終承認なしに署名・資金移動・契約確定が実行されない安全設計
 
-## Local Setup
+---
 
-Create a local `.env` from `.env.example` and set a random operator API key.
+## 開発環境のセットアップ
+
+必要なツール：Docker Desktop（Docker Compose v2）、Node.js、pnpm、Python 3.12
+
+`.env.example` をコピーして `.env` を作成し、APIキーを設定します。
 
 ```bash
 cp .env.example .env
 ```
 
-Required local value:
+`.env` に以下を設定してください。
 
-```text
-API_KEY=replace-with-a-random-operator-api-key
+```
+API_KEY=任意のランダム文字列
 ```
 
-Start the stack:
+スタックを起動します。
 
 ```bash
 docker compose up -d --build
 ```
 
-Open the dashboard:
+ダッシュボードを開きます。
 
-```text
+```
 http://localhost:3000
 ```
 
-Log in with the same `API_KEY` value from `.env`.
+`.env` に設定した `API_KEY` でログインしてください。
 
-## Smoke Test
-
-```bash
-bash scripts/smoke_test.sh
-```
-
-On Windows, if `bash` is not on `PATH`:
-
-```powershell
-C:\Program Files\Git\bin\bash.exe scripts/smoke_test.sh
-```
-
-Stop the stack:
+スタックを停止するには：
 
 ```bash
 docker compose down
 ```
-
-## Verification
-
-Backend:
-
-```bash
-rtk ruff check backend/src tests
-rtk pytest -q
-```
-
-Dashboard:
-
-```bash
-rtk pnpm --prefix dashboard lint
-rtk pnpm --prefix dashboard typecheck
-rtk pnpm --prefix dashboard test
-rtk pnpm --prefix dashboard build
-```
-
-Repository structure:
-
-```bash
-node scripts/verify.mjs
-```
-
-## Current Scope
-
-This is not production-ready SaaS. Before production use, replace the in-memory runtime with the database-backed repository path, add organization/user auth, enforce full KYB workflows, harden deployment secrets, and run cross-vendor security review.
