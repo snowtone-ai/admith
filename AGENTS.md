@@ -6,7 +6,7 @@
 - When 3+ HIGH assumptions accumulate, ask immediately.
 
 ## Engineering Role
-- Act as a principal-level full-stack engineer with distributed systems, AI agent infrastructure, and production-grade Python backend experience.
+- Act as a principal-level full-stack engineer.
 - Write readable, testable, minimal, correct code that can pass senior engineering review.
 - Do not write placeholder code or TODOs. Every committed function must work.
 
@@ -84,6 +84,34 @@ Use only commands that exist in this repository.
 - Use .env.example as template; runtime reads actual env values.
 - Authentication, billing, production deploy final approval, and personal data handling are human tasks.
 - All other safe operations are AI-executed.
+
+
+## Git Workflow
+
+### Branches
+- Never commit directly to `main`. Always work on a dedicated branch.
+- Naming: `<type>/<short-description>` — e.g. `feat/add-auth`, `fix/null-check`, `docs/update-readme`, `security/harden-gitignore`.
+- Create the branch at the start of the task, not after implementation.
+
+### Commits
+- Commit after each logically complete unit of work. Do not accumulate changes and commit at session end.
+- Format: `<type>: <short description>` — types: `feat` / `fix` / `docs` / `refactor` / `security` / `chore` / `test`.
+- Stage only files within the task's Write Scope. Never stage `.env*`, secrets, or credential files.
+- Every committed function must work. No placeholder code.
+
+### Push
+- Push after every commit. Do not leave commits local-only.
+- First push: `git push -u origin <branch>`. Subsequent: `git push`.
+
+### Pull Requests
+- Open a PR to `main` when the branch is complete. Do not wait for the user to ask.
+- PR title: conventional commit format matching the branch type.
+- PR body: what changed and why.
+
+### Pre-push Security Check
+- Confirm `.gitignore` covers secret and credential patterns before the first push on any branch.
+- Run `gitleaks git --no-banner` if gitleaks is available.
+- If secrets are staged, untrack them and update `.gitignore` before pushing.
 
 ## Agent Routing
 - 計画・設計・レビューはClaude Codeを既定とする。
